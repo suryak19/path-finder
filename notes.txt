@@ -1,0 +1,15 @@
+Path Finder visualization algorithm
+
+	************* Javascript learnings ***************
+	
+		arrays.map() -> Maps each variable to the given logic 
+		
+		array.slice() -> returns the array without affecting the original array 
+		
+			ex: array.slice(1,3) -> returns a new array from index 1 to 3
+		
+		array.unshift() -> To add elements at the beginning of an array, and returns the new length
+				
+			Ex: does opposite of array.push(), where push adds elements to the end of the array.
+		
+		

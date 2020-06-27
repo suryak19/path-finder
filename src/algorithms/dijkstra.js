@@ -1,44 +1,15 @@
-function dijkstraPrev(nodes, start, target, nodesToAnimate, boardArray, name, heuristic) {
-    if (name === "astar") 
-        return astar(nodes, start, target, nodesToAnimate, boardArray, name)
-    
-    if (! start || ! target || start === target) {
-        return false;
-    }
-    nodes[start].distance = 0;
-    nodes[start].direction = "right";
-    let unvisitedNodes = Object.keys(nodes);
-    while (unvisitedNodes.length) {
-        let currentNode = closestNode(nodes, unvisitedNodes);
-        while (currentNode.status === "wall" && unvisitedNodes.length) {
-            currentNode = closestNode(nodes, unvisitedNodes)
-        }
-        if (currentNode.distance === Infinity) {
-            return false;
-        }
-        nodesToAnimate.push(currentNode);
-        currentNode.status = "visited";
-        if (currentNode.id === target) 
-            return "success!";
-        
-        if (name === "CLA" || name === "greedy") {
-            updateNeighbors(nodes, currentNode, boardArray, target, name, start, heuristic);
-        } else if (name === "dijkstra") {
-            updateNeighbors(nodes, currentNode, boardArray);
-        }
-    }
-}
-
-function dijkstra(grid, startNode, finishNode) {
-  if(!startNode || !finishNode || startNode === finishNode){
-    return false;
-  }
-
-  nodes[startNode].distance=0;
-  const unVisitedNodes = nodes.slice();
+export function dijkstra(grid, startNode, finishNode) {
+  // if(!startNode || !finishNode || startNode === finishNode){
+  //   return false;
+  // }
+  const visitedNodesInOrder = [];
+  startNode.distance=0;
+  // nodes[startNode].distance=0;
+  // const unVisitedNodes = nodes.slice();
+  const unVisitedNode = getAllNodes(grid);
   while(!!unVisitedNodes.length){
     sortNodesByDistance(unVisitedNodes);
-    const closestNode = unVisitedNodes.unshift();
+    const closestNode = unVisitedNodes.shift();
     //#TODO - HANDLE IMPOSSIBLE 
     // while (currentNode.status === "wall" && unvisitedNodes.length) {
     //   currentNode = closestNode(nodes, unvisitedNodes)
@@ -50,11 +21,23 @@ function dijkstra(grid, startNode, finishNode) {
     //#TODO - ANIMATE
     //nodesToAnimate.push(currentNode);
     closestNode.isVisited = true;
-    if(closestNode === finishNode) return 'success';
+    visitedNodesInOrder.push(closestNode);
+    if(closestNode === finishNode) return visitedNodesInOrder;
     updateNeighbors(closestNode,grid);
   }
 
 }
+
+function getAllNodes(grid) {
+  const nodes = [];
+  for (const row of grid) {
+    for (const node of row) {
+      nodes.push(node);
+    }
+  }
+  return nodes;
+}
+
 
 function sortNodesByDistance(unVisitedNodes){
   unVisitedNodes.sort((nodeA, nodeB) => nodeA.distance - nodeB.distance);
@@ -72,283 +55,23 @@ function closestNode(nodes, unvisitedNodes) {
   return currentClosest;
 }
 
-function updateNeighbors(nodes, node, boardArray, target, name, start, heuristic) {
-  let neighbors = getNeighbors(node.id, nodes, boardArray);
-  for (let neighbor of neighbors) {
-    if (target) {
-      updateNode(node, nodes[neighbor], nodes[target], name, nodes, nodes[start], heuristic, boardArray);
-    } else {
-      updateNode(node, nodes[neighbor]);
-    }
-  }
-}
-
-function averageNumberOfNodesBetween(currentNode) {
-  let num = 0;
-  while (currentNode.previousNode) {
-    num++;
+// Backtracks from the finishNode to find the shortest path.
+// Only works when called *after* the dijkstra method above.
+export function getNodesInShortestPathOrder(finishNode) {
+  const nodesInShortestPathOrder = [];
+  let currentNode = finishNode;
+  while (currentNode !== null) {
+    nodesInShortestPathOrder.unshift(currentNode);
     currentNode = currentNode.previousNode;
   }
-  return num;
+  return nodesInShortestPathOrder;
 }
 
 
-function updateNode(currentNode, targetNode, actualTargetNode, name, nodes, actualStartNode, heuristic, boardArray) {
-  let distance = getDistance(currentNode, targetNode);
-  let distanceToCompare;
-  if (actualTargetNode && name === "CLA") {
-    let weight = targetNode.weight === 15 ? 15 : 1;
-    if (heuristic === "manhattanDistance") {
-      distanceToCompare = currentNode.distance + (distance[0] + weight) * manhattanDistance(targetNode, actualTargetNode);
-    } else if (heuristic === "poweredManhattanDistance") {
-      distanceToCompare = currentNode.distance + targetNode.weight + distance[0] + Math.pow(manhattanDistance(targetNode, actualTargetNode), 2);
-    } else if (heuristic === "extraPoweredManhattanDistance") {
-      distanceToCompare = currentNode.distance + (distance[0] + weight) * Math.pow(manhattanDistance(targetNode, actualTargetNode), 7);
-    }
-    let startNodeManhattanDistance = manhattanDistance(actualStartNode, actualTargetNode);
-  } else if (actualTargetNode && name === "greedy") {
-    distanceToCompare = targetNode.weight + distance[0] + manhattanDistance(targetNode, actualTargetNode);
-  } else {
-    distanceToCompare = currentNode.distance + targetNode.weight + distance[0];
-  }
-  if (distanceToCompare < targetNode.distance) {
-    targetNode.distance = distanceToCompare;
-    targetNode.previousNode = currentNode.id;
-    targetNode.path = distance[1];
-    targetNode.direction = distance[2];
+function updateNeighbors(node, grid) {
+  let neighbors = getNeighbors(node, grid);
+  for (const neighbor of neighbors) {
+    neighbor.distance = node.distance+1;
   }
 }
 
-function getNeighbors(id, nodes, boardArray) {
-  let coordinates = id.split("-");
-  let x = parseInt(coordinates[0]);
-  let y = parseInt(coordinates[1]);
-  let neighbors = [];
-  let potentialNeighbor;
-  if (boardArray[x - 1] && boardArray[x - 1][y]) {
-    potentialNeighbor = `${(x - 1).toString()}-${y.toString()}`
-    if (nodes[potentialNeighbor].status !== "wall") neighbors.push(potentialNeighbor);
-  }
-  if (boardArray[x + 1] && boardArray[x + 1][y]) {
-    potentialNeighbor = `${(x + 1).toString()}-${y.toString()}`
-    if (nodes[potentialNeighbor].status !== "wall") neighbors.push(potentialNeighbor);
-  }
-  if (boardArray[x][y - 1]) {
-    potentialNeighbor = `${x.toString()}-${(y - 1).toString()}`
-    if (nodes[potentialNeighbor].status !== "wall") neighbors.push(potentialNeighbor);
-  }
-  if (boardArray[x][y + 1]) {
-    potentialNeighbor = `${x.toString()}-${(y + 1).toString()}`
-    if (nodes[potentialNeighbor].status !== "wall") neighbors.push(potentialNeighbor);
-  }
-  return neighbors;
-}
-
-
-function getDistance(nodeOne, nodeTwo) {
-  let currentCoordinates = nodeOne.id.split("-");
-  let targetCoordinates = nodeTwo.id.split("-");
-  let x1 = parseInt(currentCoordinates[0]);
-  let y1 = parseInt(currentCoordinates[1]);
-  let x2 = parseInt(targetCoordinates[0]);
-  let y2 = parseInt(targetCoordinates[1]);
-  if (x2 < x1) {
-    if (nodeOne.direction === "up") {
-      return [1, ["f"], "up"];
-    } else if (nodeOne.direction === "right") {
-      return [2, ["l", "f"], "up"];
-    } else if (nodeOne.direction === "left") {
-      return [2, ["r", "f"], "up"];
-    } else if (nodeOne.direction === "down") {
-      return [3, ["r", "r", "f"], "up"];
-    }
-  } else if (x2 > x1) {
-    if (nodeOne.direction === "up") {
-      return [3, ["r", "r", "f"], "down"];
-    } else if (nodeOne.direction === "right") {
-      return [2, ["r", "f"], "down"];
-    } else if (nodeOne.direction === "left") {
-      return [2, ["l", "f"], "down"];
-    } else if (nodeOne.direction === "down") {
-      return [1, ["f"], "down"];
-    }
-  }
-  if (y2 < y1) {
-    if (nodeOne.direction === "up") {
-      return [2, ["l", "f"], "left"];
-    } else if (nodeOne.direction === "right") {
-      return [3, ["l", "l", "f"], "left"];
-    } else if (nodeOne.direction === "left") {
-      return [1, ["f"], "left"];
-    } else if (nodeOne.direction === "down") {
-      return [2, ["r", "f"], "left"];
-    }
-  } else if (y2 > y1) {
-    if (nodeOne.direction === "up") {
-      return [2, ["r", "f"], "right"];
-    } else if (nodeOne.direction === "right") {
-      return [1, ["f"], "right"];
-    } else if (nodeOne.direction === "left") {
-      return [3, ["r", "r", "f"], "right"];
-    } else if (nodeOne.direction === "down") {
-      return [2, ["l", "f"], "right"];
-    }
-  }
-}
-
-function manhattanDistance(nodeOne, nodeTwo) {
-  let nodeOneCoordinates = nodeOne.id.split("-").map(ele => parseInt(ele));
-  let nodeTwoCoordinates = nodeTwo.id.split("-").map(ele => parseInt(ele));
-  let xChange = Math.abs(nodeOneCoordinates[0] - nodeTwoCoordinates[0]);
-  let yChange = Math.abs(nodeOneCoordinates[1] - nodeTwoCoordinates[1]);
-  return (xChange + yChange);
-}
-
-function weightedManhattanDistance(nodeOne, nodeTwo, nodes) {
-  let nodeOneCoordinates = nodeOne.id.split("-").map(ele => parseInt(ele));
-  let nodeTwoCoordinates = nodeTwo.id.split("-").map(ele => parseInt(ele));
-  let xChange = Math.abs(nodeOneCoordinates[0] - nodeTwoCoordinates[0]);
-  let yChange = Math.abs(nodeOneCoordinates[1] - nodeTwoCoordinates[1]);
-
-  if (nodeOneCoordinates[0] < nodeTwoCoordinates[0] && nodeOneCoordinates[1] < nodeTwoCoordinates[1]) {
-    let additionalxChange = 0,
-        additionalyChange = 0;
-    for (let currentx = nodeOneCoordinates[0]; currentx <= nodeTwoCoordinates[0]; currentx++) {
-      let currentId = `${currentx}-${nodeOne.id.split("-")[1]}`;
-      let currentNode = nodes[currentId];
-      additionalxChange += currentNode.weight;
-    }
-    for (let currenty = nodeOneCoordinates[1]; currenty <= nodeTwoCoordinates[1]; currenty++) {
-      let currentId = `${nodeTwoCoordinates[0]}-${currenty}`;
-      let currentNode = nodes[currentId];
-      additionalyChange += currentNode.weight;
-    }
-
-    let otherAdditionalxChange = 0,
-        otherAdditionalyChange = 0;
-    for (let currenty = nodeOneCoordinates[1]; currenty <= nodeTwoCoordinates[1]; currenty++) {
-      let currentId = `${nodeOne.id.split("-")[0]}-${currenty}`;
-      let currentNode = nodes[currentId];
-      additionalyChange += currentNode.weight;
-    }
-    for (let currentx = nodeOneCoordinates[0]; currentx <= nodeTwoCoordinates[0]; currentx++) {
-      let currentId = `${currentx}-${nodeTwoCoordinates[1]}`;
-      let currentNode = nodes[currentId];
-      additionalxChange += currentNode.weight;
-    }
-
-    if (additionalxChange + additionalyChange < otherAdditionalxChange + otherAdditionalyChange) {
-      xChange += additionalxChange;
-      yChange += additionalyChange;
-    } else {
-      xChange += otherAdditionalxChange;
-      yChange += otherAdditionalyChange;
-    }
-  } else if (nodeOneCoordinates[0] < nodeTwoCoordinates[0] && nodeOneCoordinates[1] >= nodeTwoCoordinates[1]) {
-    let additionalxChange = 0,
-        additionalyChange = 0;
-    for (let currentx = nodeOneCoordinates[0]; currentx <= nodeTwoCoordinates[0]; currentx++) {
-      let currentId = `${currentx}-${nodeOne.id.split("-")[1]}`;
-      let currentNode = nodes[currentId];
-      additionalxChange += currentNode.weight;
-    }
-    for (let currenty = nodeOneCoordinates[1]; currenty >= nodeTwoCoordinates[1]; currenty--) {
-      let currentId = `${nodeTwoCoordinates[0]}-${currenty}`;
-      let currentNode = nodes[currentId];
-      additionalyChange += currentNode.weight;
-    }
-
-    let otherAdditionalxChange = 0,
-        otherAdditionalyChange = 0;
-    for (let currenty = nodeOneCoordinates[1]; currenty >= nodeTwoCoordinates[1]; currenty--) {
-      let currentId = `${nodeOne.id.split("-")[0]}-${currenty}`;
-      let currentNode = nodes[currentId];
-      additionalyChange += currentNode.weight;
-    }
-    for (let currentx = nodeOneCoordinates[0]; currentx <= nodeTwoCoordinates[0]; currentx++) {
-      let currentId = `${currentx}-${nodeTwoCoordinates[1]}`;
-      let currentNode = nodes[currentId];
-      additionalxChange += currentNode.weight;
-    }
-
-    if (additionalxChange + additionalyChange < otherAdditionalxChange + otherAdditionalyChange) {
-      xChange += additionalxChange;
-      yChange += additionalyChange;
-    } else {
-      xChange += otherAdditionalxChange;
-      yChange += otherAdditionalyChange;
-    }
-  } else if (nodeOneCoordinates[0] >= nodeTwoCoordinates[0] && nodeOneCoordinates[1] < nodeTwoCoordinates[1]) {
-    let additionalxChange = 0,
-        additionalyChange = 0;
-    for (let currentx = nodeOneCoordinates[0]; currentx >= nodeTwoCoordinates[0]; currentx--) {
-      let currentId = `${currentx}-${nodeOne.id.split("-")[1]}`;
-      let currentNode = nodes[currentId];
-      additionalxChange += currentNode.weight;
-    }
-    for (let currenty = nodeOneCoordinates[1]; currenty <= nodeTwoCoordinates[1]; currenty++) {
-      let currentId = `${nodeTwoCoordinates[0]}-${currenty}`;
-      let currentNode = nodes[currentId];
-      additionalyChange += currentNode.weight;
-    }
-
-    let otherAdditionalxChange = 0,
-        otherAdditionalyChange = 0;
-    for (let currenty = nodeOneCoordinates[1]; currenty <= nodeTwoCoordinates[1]; currenty++) {
-      let currentId = `${nodeOne.id.split("-")[0]}-${currenty}`;
-      let currentNode = nodes[currentId];
-      additionalyChange += currentNode.weight;
-    }
-    for (let currentx = nodeOneCoordinates[0]; currentx >= nodeTwoCoordinates[0]; currentx--) {
-      let currentId = `${currentx}-${nodeTwoCoordinates[1]}`;
-      let currentNode = nodes[currentId];
-      additionalxChange += currentNode.weight;
-    }
-
-    if (additionalxChange + additionalyChange < otherAdditionalxChange + otherAdditionalyChange) {
-      xChange += additionalxChange;
-      yChange += additionalyChange;
-    } else {
-      xChange += otherAdditionalxChange;
-      yChange += otherAdditionalyChange;
-    }
-  } else if (nodeOneCoordinates[0] >= nodeTwoCoordinates[0] && nodeOneCoordinates[1] >= nodeTwoCoordinates[1]) {
-      let additionalxChange = 0,
-          additionalyChange = 0;
-      for (let currentx = nodeOneCoordinates[0]; currentx >= nodeTwoCoordinates[0]; currentx--) {
-        let currentId = `${currentx}-${nodeOne.id.split("-")[1]}`;
-        let currentNode = nodes[currentId];
-        additionalxChange += currentNode.weight;
-      }
-      for (let currenty = nodeOneCoordinates[1]; currenty >= nodeTwoCoordinates[1]; currenty--) {
-        let currentId = `${nodeTwoCoordinates[0]}-${currenty}`;
-        let currentNode = nodes[currentId];
-        additionalyChange += currentNode.weight;
-      }
-
-      let otherAdditionalxChange = 0,
-          otherAdditionalyChange = 0;
-      for (let currenty = nodeOneCoordinates[1]; currenty >= nodeTwoCoordinates[1]; currenty--) {
-        let currentId = `${nodeOne.id.split("-")[0]}-${currenty}`;
-        let currentNode = nodes[currentId];
-        additionalyChange += currentNode.weight;
-      }
-      for (let currentx = nodeOneCoordinates[0]; currentx >= nodeTwoCoordinates[0]; currentx--) {
-        let currentId = `${currentx}-${nodeTwoCoordinates[1]}`;
-        let currentNode = nodes[currentId];
-        additionalxChange += currentNode.weight;
-      }
-
-      if (additionalxChange + additionalyChange < otherAdditionalxChange + otherAdditionalyChange) {
-        xChange += additionalxChange;
-        yChange += additionalyChange;
-      } else {
-        xChange += otherAdditionalxChange;
-        yChange += otherAdditionalyChange;
-      }
-    }
-
-  return xChange + yChange;
-
-
-}

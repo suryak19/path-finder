@@ -12,4 +12,4 @@ Path Finder visualization algorithm
 				
 			Ex: does opposite of array.push(), where push adds elements to the end of the array.
 		
-		
+		array.shift() -> Pops the elements from the array from the beginning
